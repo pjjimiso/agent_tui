@@ -96,17 +96,19 @@ class AgentApp(App):
         for chunk in response_stream:
             if chunk.function_calls:
                 functions_called.extend(chunk.function_calls)
-            response_content += chunk.text
+            else: 
+                response_content += chunk.text
             self.call_from_thread(response.update, response_content)
-        # TODO - fix function call parsing
-        #if functions_called:
-        #    notify_function_calls = f"We called the following functions:\n\t{functions_called}"
-        #    update_function_calls(notify_function_calls)
+        if functions_called:
+            # Update the function call view
+            notify_function_calls = f"We called some functions: {functions_called}"
+            self.update_function_calls(notify_function_calls)
 
-
-    async def update_function_calls(self, functions_calls: str) -> None:
+    # TODO - function calls aren't displayed in the FunctionCalls widget
+    # Try using reactive attribute here?
+    def update_function_calls(self, functions_calls: str) -> None:
         func_view = self.query_one("#func-view")
-        await func_view.mount(FunctionCalls(function_calls))
+        func_view.mount(FunctionCalls(function_calls))
 
 
 
