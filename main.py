@@ -13,7 +13,7 @@ import re
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Markdown, Input, Placeholder, Header, Footer, TextArea
+from textual.widgets import Markdown, Input, Placeholder, Header, Footer, Log
 
 from dotenv import load_dotenv
 from google import genai
@@ -33,7 +33,7 @@ class Response(Markdown):
     BORDER_TITLE = "Agent TUI"
 
 
-class FunctionCalls(Markdown):
+class FunctionCalls(Log):
     BORDER_TITLE = "Function Calls"
 
 
@@ -55,7 +55,7 @@ class AgentApp(App):
     def compose(self) -> ComposeResult: 
         yield Header()
         with VerticalScroll(id="func-view"):
-            yield FunctionCalls("No Function Calls")
+            yield FunctionCalls("No function calls")
         with VerticalScroll(id="chat-view"):
             yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
@@ -106,9 +106,10 @@ class AgentApp(App):
 
     # TODO - function calls aren't displayed in the FunctionCalls widget
     # Try using reactive attribute here?
-    def update_function_calls(self, functions_calls: str) -> None:
-        func_view = self.query_one("#func-view")
-        func_view.mount(FunctionCalls(function_calls))
+    def update_function_calls(self, function_calls: str) -> None:
+        func_log = self.query_one(FunctionCalls)
+        func_log.clear()
+        func_log.write_line(function_calls)
 
 
 
