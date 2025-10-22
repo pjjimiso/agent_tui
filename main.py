@@ -38,13 +38,8 @@ class FunctionCalls(Log):
 
 
 # TODO - implement widget with details about the model we're using
+#   (i.e. model, prompt tokens, response tokens, prompt count, etc.)
 class ModelDetails(Placeholder):
-    pass
-
-
-# TODO - implement tracking of model metadata in a separate widget
-#   (i.e. prompt tokens, response tokens, prompt count, etc.)
-class ModelMetaData(Placeholder):
     pass
 
 
@@ -85,67 +80,50 @@ class AgentApp(App):
         messages = [
             types.Content(role="user", parts=[types.Part(text=prompt)]),
         ]
-        response_stream = self.client.models.generate_content_stream(
-            model=gemini,
-            contents=messages,
-            config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
-        )
-        response_content = ""
-        notify_function_calls = ""
-        functions_called = []
-        for chunk in response_stream:
-            if chunk.function_calls:
-                functions_called.extend(chunk.function_calls)
+        prompt_count = 1
+        while (prompt_count < 5):
+            response_content = self.client.models.generate_content(
+                model=gemini,
+                contents=messages,
+                config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
+            )
+
+            functions_called = []
+
+            if not response_content.function_calls:
+                self.call_from_thread(response.update, response_content.text)
+                return
+
+            # Call the functions
+            function_responses = []
+            for function_call_part in response_content.function_calls:
+                function_response_part = call_function(function_call_part)
+                # Update function call log widget
+                self.update_function_call_log(f"calling function: {function_call_part}")
+                self.update_function_call_log(f"function response: {function_response_part}")
+
+                if not function_response_part.parts[0].function_response.response:
+                    self.update_function_call_log("empty function call response")
+                    raise Exception("empty function call response")
+
+                function_responses.append(function_response_part.parts[0])
+
+            if not function_responses:
+                self.update_function_call_log("no function responses generated")
+                raise Exception("no function responses generated, exiting.")
+
+            if not response_content.candidates:
+                self.update_function_call_log("no response candidates received from the model")
+                raise Exception("no response candidates received from the model")
             else:
-                response_content += chunk.text
+                # Append function response candidates back to the prompt
+                for function_response_candidate in response_content.candidates:
+                    # Append content from the model's response
+                    messages.append(function_response_candidate.content)
+                    # Append function responses
+                    messages.append(types.Content(role="tool", parts=function_responses))
 
-        # If no functions were called then return the text portion of the response
-        if not functions_called:
-            self.call_from_thread(response.update, response_content)
-            return 
-
-        # Update function call log widget
-        notify_function_calls = f"Calling function: {functions_called}"
-        self.update_function_call_log(notify_function_calls)
-            
-        # Call the functions
-        function_responses = []
-        for function_call_part in functions_called:
-            function_response_part = call_function(function_call_part)
-            self.update_function_call_log(f"function response: {function_response_part}")
-
-            if not function_response_part.parts[0].function_response.response:
-                self.update_function_call_log("empty function call response")
-                raise Exception("empty function call response")
-
-            function_responses.append(function_response_part.parts[0])
-
-        if not function_responses:
-            self.update_function_call_log("no function responses generated")
-            raise Exception("no function responses generated, exiting.")
-
-        if not chunk.candidates:
-            self.update_function_call_log("no response candidates received from the model")
-            raise Exception("no response candidates received from the model")
-        else:
-            # Append function response candidates back to the prompt
-            for function_response_candidate in chunk.candidates:
-                # Append content from the model's response
-                messages.append(function_response_candidate.content)
-                # Append function responses
-                messages.append(types.Content(role="tool", parts=function_responses))
-                final_response = self.client.models.generate_content_stream(
-                    model=gemini,
-                    contents=messages,
-                    config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
-                )
-                response_content = ""
-                for chunk in final_response:
-                    response_content += chunk.text
-
-                self.call_from_thread(response.update, response_content)
-
-
+            prompt_count += 1
 
 
     def update_function_call_log(self, function_calls: str) -> None:
