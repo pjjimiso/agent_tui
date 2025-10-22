@@ -82,8 +82,6 @@ class AgentApp(App):
 
     @work(thread=True)
     def send_prompt(self, prompt: str, response: Response) -> None: 
-        response_content = ""
-        notify_function_calls = ""
         messages = [
             types.Content(role="user", parts=[types.Part(text=prompt)]),
         ]
@@ -92,23 +90,47 @@ class AgentApp(App):
             contents=messages,
             config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
         )
+        response_content = ""
+        notify_function_calls = ""
         functions_called = []
         for chunk in response_stream:
             if chunk.function_calls:
                 functions_called.extend(chunk.function_calls)
             else: 
                 response_content += chunk.text
-            self.call_from_thread(response.update, response_content)
-        if functions_called:
-            # Update the function call view
-            notify_function_calls = f"We called some functions: {functions_called}"
-            self.update_function_calls(notify_function_calls)
 
-    # TODO - function calls aren't displayed in the FunctionCalls widget
-    # Try using reactive attribute here?
-    def update_function_calls(self, function_calls: str) -> None:
+        # If no functions were called then return the text portion of the response
+        if not functions_called:
+            self.call_from_thread(response.update, response_content)
+            return 
+
+        # Update function call log widget
+        notify_function_calls = f"Function Calls:\n{functions_called}"
+        self.update_function_call_log(notify_function_calls)
+            
+        # Call the functions
+        function_responses = []
+        for function_call_part in functions_called:
+            function_response_part = call_function(function_call_part)
+            self.update_function_call_log(f"function response: {function_response_part}")
+
+            if not function_response_part.parts[0].function_response.response:
+                self.update_function_call_log("empty function call response")
+                raise Exception("empty function call response")
+
+            function_responses.append(function_response_part.parts[0])
+
+        if not function_responses:
+            self.update_function_call_log("no function responses generated")
+            raise Exception("no function responses generated, exiting.")
+
+        # Append function response candidates back to the prompt
+
+
+
+    def update_function_call_log(self, function_calls: str) -> None:
         func_log = self.query_one(FunctionCalls)
-        func_log.clear()
+        #func_log.clear()
         func_log.write_line(function_calls)
 
 
