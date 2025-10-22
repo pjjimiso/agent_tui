@@ -3,7 +3,7 @@
 # dependencies = [
 #   "textual",
 #   "google-genai",
-#    "dotenv",
+#   "dotenv",
 # ]
 # ///
 
@@ -96,7 +96,7 @@ class AgentApp(App):
         for chunk in response_stream:
             if chunk.function_calls:
                 functions_called.extend(chunk.function_calls)
-            else: 
+            else:
                 response_content += chunk.text
 
         # If no functions were called then return the text portion of the response
@@ -105,7 +105,7 @@ class AgentApp(App):
             return 
 
         # Update function call log widget
-        notify_function_calls = f"Function Calls:\n{functions_called}"
+        notify_function_calls = f"Calling function: {functions_called}"
         self.update_function_call_log(notify_function_calls)
             
         # Call the functions
@@ -124,7 +124,27 @@ class AgentApp(App):
             self.update_function_call_log("no function responses generated")
             raise Exception("no function responses generated, exiting.")
 
-        # Append function response candidates back to the prompt
+        if not chunk.candidates:
+            self.update_function_call_log("no response candidates received from the model")
+            raise Exception("no response candidates received from the model")
+        else:
+            # Append function response candidates back to the prompt
+            for function_response_candidate in chunk.candidates:
+                # Append content from the model's response
+                messages.append(function_response_candidate.content)
+                # Append function responses
+                messages.append(types.Content(role="tool", parts=function_responses))
+                final_response = self.client.models.generate_content_stream(
+                    model=gemini,
+                    contents=messages,
+                    config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
+                )
+                response_content = ""
+                for chunk in final_response:
+                    response_content += chunk.text
+
+                self.call_from_thread(response.update, response_content)
+
 
 
 
