@@ -104,7 +104,6 @@ class AgentApp(App):
                 function_response_part = call_function(function_call_part)
                 # Update function call log widget
                 self.update_function_call_log(f"calling function: {function_call_part}")
-                self.update_function_call_log(f"function response: {function_response_part}")
 
                 if not function_response_part.parts[0].function_response.response:
                     self.update_function_call_log("empty function call response")
