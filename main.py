@@ -59,8 +59,8 @@ class AgentApp(App):
                 yield FunctionCalls("No function calls")
             with Container(id="model-metrics"):
                 yield ModelMetrics("Model metrics go here")
-            with VerticalScroll(id="chat-view"):
-                yield Response("Agent TUI at your service!")
+        with VerticalScroll(id="chat-view"):
+            yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
         yield Footer()
 
@@ -103,7 +103,10 @@ class AgentApp(App):
             for function_call_part in response_content.function_calls:
                 function_response_part = call_function(function_call_part)
                 # Update function call log widget
-                self.update_function_call_log(f"calling function: {function_call_part}")
+                if function_call_part.args:
+                    self.update_function_call_log(f"calling function: {function_call_part.name}({function_call_part.args})")
+                else:
+                    self.update_function_call_log(f"calling function: {function_call_part.name}()")
 
                 if not function_response_part.parts[0].function_response.response:
                     self.update_function_call_log("empty function call response")
