@@ -12,7 +12,7 @@ import re
 
 from textual import on, work
 from textual.app import App, ComposeResult
-from textual.containers import VerticalScroll
+from textual.containers import Container, VerticalScroll
 from textual.widgets import Markdown, Input, Placeholder, Header, Footer, Log
 
 from dotenv import load_dotenv
@@ -23,6 +23,10 @@ from models import gemini
 from functions.call_function import available_functions, call_function
 
 
+load_dotenv()
+api_key = os.environ.get("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("API Key could not be provided from GEMINI_API_KEY environment variable")
 
 
 class Prompt(Markdown):
@@ -39,29 +43,29 @@ class FunctionCalls(Log):
 
 # TODO - implement widget with details about the model we're using
 #   (i.e. model, prompt tokens, response tokens, prompt count, etc.)
-class ModelDetails(Placeholder):
+class ModelMetrics(Log):
     pass
 
 
 class AgentApp(App): 
+    CSS_PATH = "grid_layout.tcss"
     AUTO_FOCUS = "Input"
 
 
     def compose(self) -> ComposeResult: 
         yield Header()
-        with VerticalScroll(id="func-view"):
-            yield FunctionCalls("No function calls")
-        with VerticalScroll(id="chat-view"):
-            yield Response("Agent TUI at your service!")
+        with Container(id="app-grid"):
+            with VerticalScroll(id="func-view"):
+                yield FunctionCalls("No function calls")
+            with Container(id="model-metrics"):
+                yield ModelMetrics("Model metrics go here")
+            with VerticalScroll(id="chat-view"):
+                yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
         yield Footer()
 
 
     def on_mount(self) -> None: 
-        load_dotenv()
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("API Key could not be provided from GEMINI_API_KEY environment variable")
         self.client = genai.Client(api_key=api_key)
 
 

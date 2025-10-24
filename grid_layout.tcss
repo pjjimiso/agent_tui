@@ -1,0 +1,7 @@
+#app-grid {
+	layout: grid;
+	grid-size: 2;
+	grid-columns: 1fr; 
+	grid-rows: 40% 60%;
+}
+
