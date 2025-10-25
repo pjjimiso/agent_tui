@@ -11,9 +11,10 @@ import os
 import re
 
 from textual import on, work
+from textual.reactive import reactive
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
-from textual.widgets import Markdown, Input, Placeholder, Header, Footer, Log
+from textual.widgets import Markdown, Input, Placeholder, Header, Footer, Log, Sparkline
 
 from dotenv import load_dotenv
 from google import genai
@@ -27,6 +28,7 @@ load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("API Key could not be provided from GEMINI_API_KEY environment variable")
+
 
 
 class Prompt(Markdown):
@@ -43,12 +45,19 @@ class FunctionCalls(Log):
 
 # TODO - implement widget with details about the model we're using
 #   (i.e. model, prompt tokens, response tokens, prompt count, etc.)
-class ModelMetrics(Log):
-    pass
+class ModelMetrics(Sparkline):
+    
+    prompt_token_counts = reactive([0, 1, 2, 2, 1, 0, 2, 4, 3, 4, 3, 2, 1])
+
+    def compose(self) -> ComposeResult:
+        yield Sparkline(
+            self.prompt_token_counts,
+            summary_function=max,
+        )
 
 
 class AgentApp(App): 
-    CSS_PATH = "grid_layout.tcss"
+    CSS_PATH = "app-layout.tcss"
     AUTO_FOCUS = "Input"
 
 
@@ -56,11 +65,11 @@ class AgentApp(App):
         yield Header()
         with Container(id="app-grid"):
             with VerticalScroll(id="func-view"):
-                yield FunctionCalls("No function calls")
+                yield FunctionCalls()
             with Container(id="model-metrics"):
-                yield ModelMetrics("Model metrics go here")
-        with VerticalScroll(id="chat-view"):
-            yield Response("Agent TUI at your service!")
+                yield ModelMetrics()
+            with VerticalScroll(id="chat-view"):
+                yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
         yield Footer()
 
@@ -92,8 +101,10 @@ class AgentApp(App):
                 config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
             )
 
-            functions_called = []
+            if response_content.usage_metadata:
+                self.action_update_token_counts(str(response_content.usage_metadata))
 
+            functions_called = []
             if not response_content.function_calls:
                 self.call_from_thread(response.update, response_content.text)
                 return
@@ -138,22 +149,25 @@ class AgentApp(App):
         func_log.write_line(function_calls)
 
 
+    def action_update_token_counts(self, metadata: str) -> None: 
+        # Get prompt token count
+        prompt_match = re.search(r'prompt_token_count=(\d+)', metadata) 
+        prompt_token_count = prompt_match.group(1) if prompt_match else None
+        #prompt_token_counts.append(prompt_token_count)
+        #print(f"prompt_token_counts = {prompt_token_counts}")
+
+        # Get function response candidate count
+        response_match = re.search(r'candidates_token_count=(\d+)', metadata) 
+        response_token_count = response_match.group(1) if response_match else None
+
+        #print(f"Prompt tokens: {prompt_token_count}")
+        #print(f"Response tokens: {response_token_count}")
+
+
 
 
 
 def main():
-    #response.usage_metadata = str(response.usage_metadata) 
-    #
-    ## Extract candidates_token_count and prompt_token_count from response metadata
-    #prompt_match = re.search(r'prompt_token_count=(\d+)', response.usage_metadata) 
-    #response_match = re.search(r'candidates_token_count=(\d+)', response.usage_metadata) 
-
-    #prompt_token_count = prompt_match.group(1) if prompt_match else None
-    #response_token_count = response_match.group(1) if response_match else None
-
-    #print(f"User prompt: {user_prompt}")
-    #print(f"Prompt tokens: {prompt_token_count}")
-    #print(f"Response tokens: {response_token_count}")
 
     app = AgentApp()
     app.run()
