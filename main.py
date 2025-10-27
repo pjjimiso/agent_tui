@@ -9,6 +9,7 @@
 
 import os
 import re
+import random
 
 from textual import on, work
 from textual.reactive import reactive
@@ -47,13 +48,27 @@ class FunctionCalls(Log):
 #   (i.e. model, prompt tokens, response tokens, prompt count, etc.)
 class ModelMetrics(Sparkline):
     
-    prompt_token_counts = reactive([0, 1, 2, 2, 1, 0, 2, 4, 3, 4, 3, 2, 1])
+    prompt_token_counts = reactive([0], recompose=True)
 
     def compose(self) -> ComposeResult:
         yield Sparkline(
             self.prompt_token_counts,
             summary_function=max,
         )
+
+    def on_mount(self) -> None: 
+        self.set_interval(2, self.update_token_counts)
+    
+    def update_token_counts(self) -> None: 
+        if len(self.prompt_token_counts) >= 30:
+            self.prompt_token_counts.pop(0)
+        self.prompt_token_counts.append(random.randint(1,5))
+        print(f"prompt_token_counts = {self.prompt_token_counts}")
+        self.refresh()
+
+    def watch_prompt_token_counts(self) -> None: 
+        pass
+
 
 
 class AgentApp(App): 
@@ -66,8 +81,8 @@ class AgentApp(App):
         with Container(id="app-grid"):
             with VerticalScroll(id="func-view"):
                 yield FunctionCalls()
-            with Container(id="model-metrics"):
-                yield ModelMetrics()
+           # with Container(id="model-metrics"):
+            yield ModelMetrics()
             with VerticalScroll(id="chat-view"):
                 yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
