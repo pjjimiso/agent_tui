@@ -15,13 +15,14 @@ from textual import on, work
 from textual.reactive import reactive
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
-from textual.widgets import Markdown, Input, Placeholder, Header, Footer, Log, Sparkline
+from textual.widgets import Markdown, Input, Header, Footer, Log, Sparkline
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from prompts import system_prompt
 from models import gemini
+
+from prompts import system_prompt
 from functions.call_function import available_functions, call_function
 
 
@@ -29,7 +30,6 @@ load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("API Key could not be provided from GEMINI_API_KEY environment variable")
-
 
 
 class Prompt(Markdown):
@@ -47,7 +47,7 @@ class FunctionCalls(Log):
 # TODO - implement widget with details about the model we're using
 #   (i.e. model, prompt tokens, response tokens, prompt count, etc.)
 class ModelMetrics(Sparkline):
-    
+
     prompt_token_counts = reactive([0], recompose=True)
 
     def compose(self) -> ComposeResult:
@@ -58,40 +58,32 @@ class ModelMetrics(Sparkline):
 
     def on_mount(self) -> None: 
         self.set_interval(2, self.update_token_counts)
-    
+
     def update_token_counts(self) -> None: 
         if len(self.prompt_token_counts) >= 30:
             self.prompt_token_counts.pop(0)
         self.prompt_token_counts.append(random.randint(1,5))
         print(f"prompt_token_counts = {self.prompt_token_counts}")
-        self.refresh()
-
-    def watch_prompt_token_counts(self) -> None: 
-        pass
-
 
 
 class AgentApp(App): 
     CSS_PATH = "app-layout.tcss"
     AUTO_FOCUS = "Input"
 
-
     def compose(self) -> ComposeResult: 
         yield Header()
         with Container(id="app-grid"):
             with VerticalScroll(id="func-view"):
                 yield FunctionCalls()
-           # with Container(id="model-metrics"):
-            yield ModelMetrics()
+            with Container(id="model-metrics"):
+                yield ModelMetrics()
             with VerticalScroll(id="chat-view"):
                 yield Response("Agent TUI at your service!")
         yield Input(placeholder="What can I help you with?")
         yield Footer()
 
-
     def on_mount(self) -> None: 
         self.client = genai.Client(api_key=api_key)
-
 
     @on(Input.Submitted)
     async def on_input(self, event: Input.Submitted) -> None:
@@ -101,7 +93,6 @@ class AgentApp(App):
         await chat_view.mount(response := Response())
         response.anchor()
         self.send_prompt(event.value, response)
-
 
     @work(thread=True)
     def send_prompt(self, prompt: str, response: Response) -> None: 
@@ -157,12 +148,10 @@ class AgentApp(App):
 
             prompt_count += 1
 
-
     def update_function_call_log(self, function_calls: str) -> None:
         func_log = self.query_one(FunctionCalls)
         #func_log.clear()
         func_log.write_line(function_calls)
-
 
     def action_update_token_counts(self, metadata: str) -> None: 
         # Get prompt token count
@@ -177,9 +166,6 @@ class AgentApp(App):
 
         #print(f"Prompt tokens: {prompt_token_count}")
         #print(f"Response tokens: {response_token_count}")
-
-
-
 
 
 def main():
