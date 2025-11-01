@@ -70,10 +70,6 @@ class AgentApp(App):
     CSS_PATH = "app-layout.tcss"
     AUTO_FOCUS = "Input"
 
-    messages = [
-        types.Content(role="user", parts=[types.Part(text="Introduce yourself.")]),
-    ]
-
     def compose(self) -> ComposeResult: 
         yield Header()
         with Container(id="app-grid"):
@@ -117,7 +113,6 @@ class AgentApp(App):
                 return
 
             # Call the functions
-            functions_called = []
             function_responses = []
             for function_call_part in response_content.function_calls:
                 # Update function call log widget
@@ -146,11 +141,10 @@ class AgentApp(App):
                 # Append function response candidates back to the prompt
                 for function_response_candidate in response_content.candidates:
                     # Append content from the model's response
-                    messages = []
-                    messages.append(function_response_candidate.content)
+                    # messages = []
+                    # messages.append(function_response_candidate.content)
                     # Append function responses
-                    #self.messages.append(types.Content(role="tool", parts=function_responses))
-                    messages.append(function_responses)
+                    # messages.append(types.Content(role="tool", parts=function_responses))
                 response_content = self.chat.send_message(
                     function_responses
                 )
