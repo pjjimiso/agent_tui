@@ -84,6 +84,7 @@ class AgentApp(App):
 
     def on_mount(self) -> None: 
         self.client = genai.Client(api_key=api_key)
+        self.chat = self.client.chats.create(model=gemini)
 
     @on(Input.Submitted)
     async def on_input(self, event: Input.Submitted) -> None:
@@ -96,21 +97,17 @@ class AgentApp(App):
 
     @work(thread=True)
     def send_prompt(self, prompt: str, response: Response) -> None: 
-        messages = [
-            types.Content(role="user", parts=[types.Part(text=prompt)]),
-        ]
+        response_content = self.chat.send_message(
+            types.Part(text=prompt),
+            config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
+        )
+
         prompt_count = 1
-        while (prompt_count < 5):
-            response_content = self.client.models.generate_content(
-                model=gemini,
-                contents=messages,
-                config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt),
-            )
+        while (prompt_count < 20):
 
             if response_content.usage_metadata:
                 self.action_update_token_counts(str(response_content.usage_metadata))
 
-            functions_called = []
             if not response_content.function_calls:
                 self.call_from_thread(response.update, response_content.text)
                 return
@@ -118,12 +115,14 @@ class AgentApp(App):
             # Call the functions
             function_responses = []
             for function_call_part in response_content.function_calls:
-                function_response_part = call_function(function_call_part)
                 # Update function call log widget
                 if function_call_part.args:
                     self.update_function_call_log(f"calling function: {function_call_part.name}({function_call_part.args})")
                 else:
                     self.update_function_call_log(f"calling function: {function_call_part.name}()")
+                
+                # Call the functions
+                function_response_part = call_function(function_call_part)
 
                 if not function_response_part.parts[0].function_response.response:
                     self.update_function_call_log("empty function call response")
@@ -142,9 +141,13 @@ class AgentApp(App):
                 # Append function response candidates back to the prompt
                 for function_response_candidate in response_content.candidates:
                     # Append content from the model's response
-                    messages.append(function_response_candidate.content)
+                    # messages = []
+                    # messages.append(function_response_candidate.content)
                     # Append function responses
-                    messages.append(types.Content(role="tool", parts=function_responses))
+                    # messages.append(types.Content(role="tool", parts=function_responses))
+                response_content = self.chat.send_message(
+                    function_responses
+                )
 
             prompt_count += 1
 
