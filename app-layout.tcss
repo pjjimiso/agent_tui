@@ -1,21 +1,32 @@
 #app-grid {
 	layout: grid;
 	grid-size: 2;
-	grid-columns: 1fr; 
+	grid-columns: 1fr 1fr;
 	grid-rows: 35% 65%;
 }
 
-#func-view {
-	border: green;
+FunctionCalls {
+	border: round dodgerblue 60%;
+	border-title-align: center;
 }
 
-#model-metrics {
-	border: red;
-	align: center middle;
+#model-metadata {
+	border: round orange 60%;
+	border-title-align: center;
 }
 
-#chat-view {
+Prompt {
+	color: cyan;
+}
+
+Response {
+	color: white;
+}
+
+ChatView {
 	column-span: 2;
-	border: blue;
+	margin-top: 1;
+	border: round white 60%;
+	border-title-align: center;
 }
 
