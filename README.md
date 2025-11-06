@@ -4,6 +4,9 @@ This is a Terminal User Interface (TUI) built using [Textual](https://textual.te
 
 Some other enhancements over the previous AI agent include: multi-turn chat conversations which remember context about previous messages that you have sent, model metrics showing total token consumption and a sparkline displayng tokens used over time, and a function call log that gets updated in real-time for more visibility into what the LLM is running.
 
+Here's an example of what the terminal interface looks like:
+![TUI](./assets/screenshot-2025-11-05_17-16-15.png)
+
 ## Features
 
 - **Interactive Terminal UI**: Functional TUI built with the Textual framework for interacting with LLM 
