@@ -2,7 +2,7 @@
 	layout: grid;
 	grid-size: 2;
 	grid-columns: 1fr 1fr;
-	grid-rows: 35% 65%;
+	grid-rows: 30% 70%;
 }
 
 FunctionCalls {
