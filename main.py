@@ -24,7 +24,10 @@ from models import gemini
 from prompts import system_prompt
 from functions.call_function import available_functions, call_function
 
-
+"""
+API Key is expected inside of a .env file:
+    GEMINI_API_KEY=1234567890
+"""
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 if not api_key:
@@ -32,24 +35,37 @@ if not api_key:
 
 
 class Prompt(Markdown):
+    """
+    Widget containing the text issued to the model. It gets
+    added to ChatView after submitting the text.
+    """
     pass
 
 
 class Response(Markdown):
+    """
+    Widget containing the text response from the model. It gets
+    added to ChatView after submitting the prompt text.
+    """
     pass
 
 
 class ChatView(VerticalScroll):
+    """Widget showing user and agent chat message history"""
     BORDER_TITLE = "Agent Chat"
 
 
 class FunctionCalls(Log):
+    """Widget showing the function calls and args requested by the model"""
     BORDER_TITLE = "Function Calls"
 
 
 class ModelMetadata(Container):
+    """
+    Widget containing LLM model metadata such as specific model, 
+    total prompt, and total response tokens consumed this session
+    """
     BORDER_TITLE = "Model Metadata"
-
     metadata = reactive(
         {
             "Model": gemini,
@@ -73,14 +89,18 @@ class ModelMetadata(Container):
 
 
 class ModelTokenUsage(Container):
+    """
+    Container widget containing a Sparkline widget showing
+    total tokens consumed over time, updated every 2 seconds
+    """
     BORDER_TITLE = "Prompt Tokens Used"
     sparkline_length = 30 # 60 seconds (30 datapoints @ 2sec intervals)
     tokens_this_interval = 0
 
     def compose(self) -> ComposeResult:
         """
-        Initialize sparkline to 0's so we have a fixed
-        number of columns with even width from the start
+        Initialize sparkline to 0-array to start with a
+        fixed number of columns with even width
         """
         self.sparkline = Sparkline(
             [0 for _ in range(30)],
@@ -102,9 +122,9 @@ class ModelTokenUsage(Container):
 
 
 class AgentApp(App): 
+    """The main App containing all other widgets"""
     CSS_PATH = "app-layout.tcss"
     AUTO_FOCUS = "Input"
-
 
     def compose(self) -> ComposeResult: 
         yield Header()
@@ -151,7 +171,6 @@ class AgentApp(App):
                 self.scroll_chat_to_bottom()
                 return
 
-            # Call the functions
             function_responses = []
             for function_call_part in response_content.function_calls:
                 # Update function call log widget
@@ -162,7 +181,6 @@ class AgentApp(App):
                 
                 # Call the functions
                 function_response_part = call_function(function_call_part)
-
                 if not function_response_part.parts[0].function_response.response:
                     self.update_function_call_log("empty function call response")
                     raise Exception("empty function call response")
@@ -177,11 +195,7 @@ class AgentApp(App):
                 self.update_function_call_log("no response candidates received from the model")
                 raise Exception("no response candidates received from the model")
             else:
-                # Append function response candidates back to the prompt
-                #for function_response_candidate in response_content.candidates:
-                    # messages.append(function_response_candidate.content)
                 response_content = self.chat.send_message(function_responses)
-
             prompt_count += 1
 
     def scroll_chat_to_bottom(self) -> None:
@@ -190,7 +204,6 @@ class AgentApp(App):
 
     def update_function_call_log(self, function_calls: str) -> None:
         func_log = self.query_one(FunctionCalls)
-        #func_log.clear()
         func_log.write_line(function_calls)
 
     def action_update_token_counts(self, response_metadata: str) -> None:
@@ -199,19 +212,16 @@ class AgentApp(App):
         prompt_token_count = int(prompt_match.group(1)) if prompt_match else 0
         response_match = re.search(r'candidates_token_count=(\d+)', response_metadata)
         response_token_count = int(response_match.group(1)) if response_match else 0
-
         # Update our tracked token counts in ModelMetrics widget 
         model_metadata = self.query_one(ModelMetadata)
         model_metadata.update_prompt_token_count(prompt_token_count)
         model_metadata.update_response_token_count(response_token_count)
-
         # Update ModelTokenUsage sparkline with this interval's combined token usage
         model_token_usage = self.query_one(ModelTokenUsage)
         model_token_usage.tokens_this_interval = prompt_token_count + response_token_count
 
 
 def main():
-
     app = AgentApp()
     app.run()
 
